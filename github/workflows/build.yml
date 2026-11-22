@@ -5,11 +5,17 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: HorizonWallpaper
     steps:
       - uses: actions/checkout@v4
+      - name: Find the project folder
+        id: proj
+        run: |
+          S=$(find . -maxdepth 3 -name settings.gradle -not -path './.git/*' | head -n 1)
+          echo "settings file: $S"
+          D=$(dirname "$S")
+          echo "dir=$D" >> "$GITHUB_OUTPUT"
+          echo "VERSION=$(grep -oP "versionName '\K[^']+" "$D/app/build.gradle")" >> "$GITHUB_ENV"
+          echo "CODE=$(grep -oP "versionCode \K[0-9]+" "$D/app/build.gradle")" >> "$GITHUB_ENV"
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -18,12 +24,9 @@ jobs:
         with:
           gradle-version: 8.9
       - name: Build debug APK
+        working-directory: ${{ steps.proj.outputs.dir }}
         run: gradle assembleDebug --no-daemon
-      - name: Read the version
-        run: |
-          echo "VERSION=$(grep -oP "versionName '\K[^']+" app/build.gradle)" >> "$GITHUB_ENV"
-          echo "CODE=$(grep -oP "versionCode \K[0-9]+" app/build.gradle)" >> "$GITHUB_ENV"
       - uses: actions/upload-artifact@v4
         with:
           name: HorizonLauncher-v${{ env.VERSION }}-code${{ env.CODE }}
-          path: HorizonWallpaper/app/build/outputs/apk/debug/*.apk
+          path: ${{ steps.proj.outputs.dir }}/app/build/outputs/apk/debug/*.apk
